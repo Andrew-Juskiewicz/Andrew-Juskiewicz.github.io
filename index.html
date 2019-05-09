@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<!-- Data obtainded via https://www.themoviedb.org and their developer API  -->
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+</head>
+<body>
+<center>
+<h1>Media Finder</h1>
+
+<input type="text" id="search" name="search" placeholder="Enter a search term" />
+<br>
+
+<label for="searchBy">Search By:</label> 
+<select id="searchBy">
+  <option value="Title">Movie Title</option>
+  <option value="Show">TV show</option>
+</select>
+
+
+<label for="sortBy">Sort By:</label> 
+<select id="sortBy">
+  <option value="Popularity">Popularity</option>
+  <option value="Date">Date</option>
+  <option value="Rating">Rating</option>
+</select>
+
+
+<button type="button" onclick="readHTML()">Search</button>
+<br>
+
+<div id="results"></div>
+
+</center>
+
+<script>
+	var sortBy;
+	var searchBy;
+
+	//API setup
+	var xhr = new XMLHttpRequest();
+	
+	//Handle API responses
+	xhr.onload = function () {
+		if (xhr.status >= 200 && xhr.status < 300) {
+			sortResults(xhr.response);
+		}
+	}
+
+
+	//Reads the search parameters from the HTML elements
+	function readHTML() {
+  		var searchTerm = document.getElementById("search").value;
+
+		var searchSelect = document.getElementById("searchBy");
+		searchBy = searchSelect.options[searchSelect.selectedIndex].value;
+
+		var sortSelect = document.getElementById("sortBy");
+		sortBy = sortSelect.options[sortSelect.selectedIndex].value;
+
+  		if(searchTerm != ""){
+			makeAPICall(searchTerm, searchBy);
+  		}
+	}
+
+	//Makes an API call to themoviedb API
+	function makeAPICall(searchTerm, searchBy){
+		var requestString = undefined;
+		
+		switch (searchBy){
+			case 'Title':
+				requestString = 'https://api.themoviedb.org/3/search/movie?api_key=9abc79ab8644b37e70f858301ee08add&language=en-US&query=' + searchTerm + '&include_adult=false';
+				break;
+			case 'Show':
+				requestString = 'https://api.themoviedb.org/3/search/tv?api_key=9abc79ab8644b37e70f858301ee08add&language=en-US&query=' + searchTerm;
+				break;
+		}
+		
+		if(requestString != undefined){
+			xhr.open('GET', requestString);
+			xhr.send();
+		}
+	}
+
+
+	//sorts the movies/tv shows according the the selected sortBy field
+	function sortResults(response){
+		
+		var retrivedData = JSON.parse(response);
+
+		switch (sortBy){
+			case 'Popularity':
+				retrivedData.results.sort(function(a, b) {
+    					return parseFloat(b.popularity) - parseFloat(a.popularity);
+				});
+				break;
+			case 'Date':
+				if(searchBy == 'Show'){
+					retrivedData.results.sort(function(a, b) {
+						if(a.first_air_date == ""){a.first_air_date = "0";}
+						if(b.first_air_date == ""){b.first_air_date = "0";}
+    						return parseInt(b.first_air_date.replace('-', '')) - parseInt(a.first_air_date.replace('-', ''));
+					});
+				}
+				else{
+					retrivedData.results.sort(function(a, b) {
+						if(a.release_date == ""){a.release_date = "0";}
+						if(b.release_date == ""){b.release_date = "0";}
+    						return parseInt(b.release_date.replace('-', '')) - parseInt(a.release_date.replace('-', ''));
+					});
+				}
+				break;
+			case 'Rating':
+				retrivedData.results.sort(function(a, b) {
+    					return parseFloat(b.vote_average) - parseFloat(a.vote_average);
+				});
+				break;
+			}
+		console.log(retrivedData.results);
+		displayResults(retrivedData);
+		
+	}
+
+
+
+	//Displays teh results of the API call to the webpage as a table
+	function displayResults(data){
+		
+		//if no data could be found
+		if(data.results.length == 0){
+			document.getElementById('results').innerHTML = "<h3>No results to be found</h3>";
+			return;
+		}
+		
+		var baseImageURL = 'https://image.tmdb.org/t/p/w200';
+		var HTMLstring = '<table class="table"><thead class="thead-light"><tr><th scope="col">Image</th><th scope="col">Title</th><th scope="col">Popularity</th><th scope="col">Date</th><th scope="col">Rating</th></tr></thead><tbody>';
+
+		//loops through each result and adds it to the table
+		for(var i=0; i < data.results.length; i++){
+			if(searchBy == 'Show'){
+				HTMLstring += "<tr><td><img width='100' height='100' src=" + baseImageURL + data.results[i].poster_path + "></td><td>" + data.results[i].name + "</td><td>" + data.results[i].popularity + "</td><td>" + data.results[i].first_air_date + "</td><td>" + data.results[i].vote_average + "</td></tr>";
+			}
+			else{
+				HTMLstring += "<tr><td><img width='100' height='100' src=" + baseImageURL + data.results[i].poster_path + "></td><td>" + data.results[i].title + "</td><td>" + data.results[i].popularity + "</td><td>" + data.results[i].release_date + "</td><td>" + data.results[i].vote_average + "</td></tr>";
+			}
+	
+		}
+		HTMLstring += "</tbody></table>";
+
+		document.getElementById('results').innerHTML = HTMLstring;
+
+	}
+
+  
+</script>
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+</body>
+
+</html> 
